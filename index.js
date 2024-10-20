@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
@@ -28,16 +28,22 @@ const client = new MongoClient(uri, {
 });
 
 async function run() {
-  const database = client.db("clean-co");
-  const movies = database.collection("bookings");
+  const database = client.db("swiftmart");
+  const jobsCollection = database.collection("jobs");
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    app.get("/cole", async (req, res) => {
-      const query = {};
-      const cursor = await movies.find({}).toArray();
-      res.send(cursor);
+    app.get("/jobs", async (req, res) => {
+      const result = await jobsCollection.find({}).toArray();
+      res.send(result);
     });
-
+    // ! get a single job data form database using job id
+    app.get("/job/:id", async (req, res) => {
+      console.log();
+      const id = req.params.id;
+      //   const query = { id: new ObjectId(id) };
+      const result = await jobsCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
