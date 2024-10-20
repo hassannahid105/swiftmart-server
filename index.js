@@ -30,6 +30,7 @@ const client = new MongoClient(uri, {
 async function run() {
   const database = client.db("swiftmart");
   const jobsCollection = database.collection("jobs");
+  const bidCollection = database.collection("bid");
   try {
     // Connect the client to the server	(optional starting in v4.7)
     app.get("/jobs", async (req, res) => {
@@ -44,6 +45,19 @@ async function run() {
       const result = await jobsCollection.findOne({ _id: new ObjectId(id) });
       res.send(result);
     });
+    // ! save  a bid data in db
+    app.post("/bid", async (req, res) => {
+      const bidData = req.body;
+      const result = await bidCollection.insertOne(bidData);
+      res.send(result);
+    });
+    // ! save  a job data in db
+    app.post("/job", async (req, res) => {
+      const jobData = req.body;
+      const result = await jobsCollection.insertOne(jobData);
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
