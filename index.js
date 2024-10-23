@@ -1,21 +1,37 @@
 const express = require("express");
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const cors = require("cors");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 
-app.use(
-  cors({
-    origin: ["http://localhost:5173"],
-    credential: true,
-    optionSuccessStatus: 200,
-  })
-);
+const corsOptions = {
+  origin: ["http://localhost:5173", "http://localhost:5174"],
+  credentials: true,
+  optionSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 //
-
+const jwtToken = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).send({ message: "unauthorize" });
+  }
+  if (token) {
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRECT, (err, decode) => {
+      if (err) {
+        return res.status(401).send({ message: "unauthorize" });
+      }
+      req.user = decode;
+      next();
+    });
+  }
+};
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ovfeh1r.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -37,6 +53,30 @@ async function run() {
       const result = await jobsCollection.find({}).toArray();
       res.send(result);
     });
+    // ? jwt generate ==================================
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRECT, {
+        expiresIn: "1hr",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: false,
+          sameSite: false,
+        })
+        .send({ status: "true" });
+    });
+    app.get("/logout", async (req, res) => {
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: false,
+          sameSite: false,
+          maxAge: 0,
+        })
+        .send({ statu: true });
+    });
     // ! get a single job data form database using job id
     app.get("/job/:id", async (req, res) => {
       const id = req.params.id;
@@ -57,8 +97,13 @@ async function run() {
       res.send(result);
     });
     // ! get all jobs posted by a specific user
-    app.get("/jobs/:email", async (req, res) => {
+    app.get("/jobs/:email", jwtToken, async (req, res) => {
+      // !=================================================================
       const email = req.params.email;
+      const tokenEmail = req.user.email;
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: "forbiddenaccess" });
+      }
       const query = { "buyer.email": email };
       const result = await jobsCollection.find(query).toArray();
       res.send(result);
@@ -86,17 +131,36 @@ async function run() {
     });
     // ?======================================================================================
     // ! get all my posted  bids by a specific user
-    app.get("/my-bids/:email", async (req, res) => {
+    app.get("/my-bids/:email", jwtToken, async (req, res) => {
       const email = req.params.email;
+      const tokenEmail = req.user.email;
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: "forbiddenaccess" });
+      }
       const query = { userEmail: email };
       const result = await bidCollection.find(query).toArray();
       res.send(result);
     });
     // ! get all   bids request for owner  specific data
-    app.get("/bid-requests/:email", async (req, res) => {
+    app.get("/bid-requests/:email", jwtToken, async (req, res) => {
       const email = req.params.email;
+      const tokenEmail = req.user.email;
+      if (tokenEmail !== email) {
+        return res.status(403).send({ message: "forbiddenaccess" });
+      }
       const query = { "buyer.buyer_email": email };
       const result = await bidCollection.find(query).toArray();
+      res.send(result);
+    });
+    // ! owner change bit status for bid request
+    app.patch("/bid/:id", async (req, res) => {
+      const id = req.params.id;
+      const status = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: { JobStatus: status.status },
+      };
+      const result = await bidCollection.updateOne(query, updateDoc);
       res.send(result);
     });
     // Send a ping to confirm a successful connection
