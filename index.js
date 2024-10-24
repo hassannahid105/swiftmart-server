@@ -87,8 +87,14 @@ async function run() {
     // ! save  a bid data in db
     app.post("/bid", async (req, res) => {
       const bidData = req.body;
+      // duplicate data not allow
+      const query = { userEmail: bidData.userEmail };
+      const allReadyApplied = await bidCollection.findOne(query);
+      if (allReadyApplied) {
+        return res.status(400).send("you have already  applied this job");
+      }
       const result = await bidCollection.insertOne(bidData);
-      res.send(result);
+      res.send("result");
     });
     // ! save  a job data in db
     app.post("/job", async (req, res) => {
@@ -102,7 +108,7 @@ async function run() {
       const email = req.params.email;
       const tokenEmail = req.user.email;
       if (tokenEmail !== email) {
-        return res.status(403).send({ message: "forbiddenaccess" });
+        return res.status(403).send({ message: "forbiddenAccess" });
       }
       const query = { "buyer.email": email };
       const result = await jobsCollection.find(query).toArray();
@@ -162,6 +168,22 @@ async function run() {
       };
       const result = await bidCollection.updateOne(query, updateDoc);
       res.send(result);
+    });
+    // ! =================================== paignation implement =================================
+    app.get("/all-jobs", async (req, res) => {
+      const page = parseFloat(req.query.page) - 1;
+      const size = parseFloat(req.query.size);
+      console.log(page, size);
+      const result = await jobsCollection
+        .find()
+        .skip(page * size)
+        .limit(size)
+        .toArray();
+      res.send(result);
+    });
+    app.get("/jobs-count", async (req, res) => {
+      const count = await jobsCollection.countDocuments();
+      res.send({ count });
     });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
