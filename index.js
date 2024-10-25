@@ -173,16 +173,27 @@ async function run() {
     app.get("/all-jobs", async (req, res) => {
       const page = parseFloat(req.query.page) - 1;
       const size = parseFloat(req.query.size);
-      console.log(page, size);
+      const filter = req.query.filter;
+      console.log(filter);
+      let query = {};
+      if (filter) {
+        query = { category: filter };
+      }
       const result = await jobsCollection
-        .find()
+        .find(query)
         .skip(page * size)
         .limit(size)
         .toArray();
       res.send(result);
     });
     app.get("/jobs-count", async (req, res) => {
-      const count = await jobsCollection.countDocuments();
+      const filter = req.query.filter;
+      let query = {};
+      if (filter) {
+        query.category = filter;
+      }
+      console.log("form job count:", query);
+      const count = await jobsCollection.countDocuments(query);
       res.send({ count });
     });
     // Send a ping to confirm a successful connection
