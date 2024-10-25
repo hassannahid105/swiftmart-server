@@ -182,11 +182,14 @@ async function run() {
       const sort = req.query.sort;
       let option = {};
       if (sort) {
-        option = { sort: { job_title: sort === "asc" ? 1 : -1 } };
+        option = { sort: { deadline: sort === "asc" ? 1 : -1 } };
       }
       // ! search
       const search = req.query.search;
-      console.log(search);
+      if (search) {
+        query = { job_title: { $regex: search, $options: "i" } };
+      }
+      // console.log("searching: ", search);
       const result = await jobsCollection
         .find(query, option)
         .skip(page * size)
