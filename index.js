@@ -174,13 +174,21 @@ async function run() {
       const page = parseFloat(req.query.page) - 1;
       const size = parseFloat(req.query.size);
       const filter = req.query.filter;
-      console.log(filter);
       let query = {};
       if (filter) {
         query = { category: filter };
       }
+      //  ! sort
+      const sort = req.query.sort;
+      let option = {};
+      if (sort) {
+        option = { sort: { job_title: sort === "asc" ? 1 : -1 } };
+      }
+      // ! search
+      const search = req.query.search;
+      console.log(search);
       const result = await jobsCollection
-        .find(query)
+        .find(query, option)
         .skip(page * size)
         .limit(size)
         .toArray();
@@ -192,7 +200,6 @@ async function run() {
       if (filter) {
         query.category = filter;
       }
-      console.log("form job count:", query);
       const count = await jobsCollection.countDocuments(query);
       res.send({ count });
     });
